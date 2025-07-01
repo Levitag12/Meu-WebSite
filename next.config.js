@@ -2,7 +2,9 @@
 const nextConfig = {
   serverExternalPackages: ["@node-rs/argon2"],
   experimental: {
-    serverActions: true
+    serverActions: {
+      allowedOrigins: ["localhost:3000", "0.0.0.0:3000"]
+    }
   },
   allowedDevOrigins: [
     "http://localhost:3001",
