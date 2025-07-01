@@ -75,8 +75,3 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login"
   }
 };
-
-// Import from next-auth for App Router
-import { getServerSession } from "next-auth";
-
-export const auth = () => getServerSession(authOptions);
