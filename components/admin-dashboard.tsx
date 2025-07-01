@@ -1,166 +1,100 @@
+'use client';
 
-import { db } from '@/lib/db';
-import { documents, users, attachments } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import CreateDocumentForm from '@/components/create-document-form';
-import { confirmReturnReceived } from '@/app/actions/document-actions';
-import ConfirmReturnButton from '@/components/confirm-return-button';
-import DocumentFilters from '@/components/document-filters';
+import { CreateDocumentForm } from '@/components/create-document-form';
+import { DocumentFilters } from '@/components/document-filters';
+import { ConfirmReturnButton } from '@/components/confirm-return-button';
 
-async function getDocumentsWithRelations() {
-  return await db
-    .select({
-      id: documents.id,
-      title: documents.title,
-      status: documents.status,
-      createdAt: documents.createdAt,
-      updatedAt: documents.updatedAt,
-      consultant: {
-        id: users.id,
-        name: users.name,
-        email: users.email,
-      },
-    })
-    .from(documents)
-    .leftJoin(users, eq(documents.consultantId, users.id))
-    .orderBy(desc(documents.createdAt));
+interface Document {
+  id: string;
+  title: string;
+  status: string;
+  consultantName: string;
+  updatedAt: string;
 }
 
-async function getConsultants() {
-  return await db
-    .select()
-    .from(users)
-    .where(eq(users.role, 'CONSULTANT'));
-}
+export function AdminDashboard() {
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([]);
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
-function getStatusBadge(status: string) {
-  const variants = {
-    DELIVERED: 'default',
-    RECEIPT_CONFIRMED: 'secondary',
-    RETURN_SENT: 'destructive',
-    COMPLETED: 'outline',
-  } as const;
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
 
-  const labels = {
-    DELIVERED: 'Delivered',
-    RECEIPT_CONFIRMED: 'Receipt Confirmed',
-    RETURN_SENT: 'Return Sent',
-    COMPLETED: 'Completed',
+  const fetchDocuments = async () => {
+    try {
+      const response = await fetch('/api/documents');
+      const data = await response.json();
+      setDocuments(data);
+      setFilteredDocuments(data);
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+    }
   };
 
-  return (
-    <Badge variant={variants[status as keyof typeof variants]}>
-      {labels[status as keyof typeof labels]}
-    </Badge>
-  );
-}
+  const handleFilter = (status: string) => {
+    if (status === 'ALL') {
+      setFilteredDocuments(documents);
+    } else {
+      setFilteredDocuments(documents.filter(doc => doc.status === status));
+    }
+  };
 
-export default async function AdminDashboard() {
-  const documentsData = await getDocumentsWithRelations();
-  const consultants = await getConsultants();
-
-  // Calculate statistics
-  const stats = {
-    total: documentsData.length,
-    pendingReceipt: documentsData.filter(d => d.status === 'DELIVERED').length,
-    pendingReturn: documentsData.filter(d => d.status === 'RECEIPT_CONFIRMED').length,
-    returnsToCheck: documentsData.filter(d => d.status === 'RETURN_SENT').length,
-    completed: documentsData.filter(d => d.status === 'COMPLETED').length,
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+      DELIVERED: 'default',
+      RECEIPT_CONFIRMED: 'secondary',
+      RETURN_SENT: 'outline',
+      COMPLETED: 'destructive'
+    };
+    return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-3xl font-bold tracking-tight">Admin Dashboard</h2>
-        <CreateDocumentForm consultants={consultants} />
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Admin Dashboard</h2>
+          <p className="text-muted-foreground">Manage all documents and consultants</p>
+        </div>
+        <Button onClick={() => setShowCreateForm(true)}>
+          Create New Document
+        </Button>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Documents</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Receipt</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingReceipt}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Return</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.pendingReturn}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Returns to Check</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.returnsToCheck}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.completed}</div>
-          </CardContent>
-        </Card>
-      </div>
+      <DocumentFilters onFilter={handleFilter} />
 
-      {/* Document Filters */}
-      <DocumentFilters />
-
-      {/* Documents Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Documents</CardTitle>
-          <CardDescription>
-            Manage all documents and track their status
-          </CardDescription>
+          <CardTitle>All Documents</CardTitle>
+          <CardDescription>Overview of all documents in the system</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Consultant</TableHead>
+                <TableHead>Document Title</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Updated</TableHead>
+                <TableHead>Assigned Consultant</TableHead>
+                <TableHead>Last Update</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {documentsData.map((document) => (
+              {filteredDocuments.map((document) => (
                 <TableRow key={document.id}>
                   <TableCell className="font-medium">{document.title}</TableCell>
-                  <TableCell>{document.consultant?.name}</TableCell>
                   <TableCell>{getStatusBadge(document.status)}</TableCell>
-                  <TableCell>
-                    {new Date(document.createdAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    {new Date(document.updatedAt).toLocaleDateString()}
-                  </TableCell>
+                  <TableCell>{document.consultantName}</TableCell>
+                  <TableCell>{new Date(document.updatedAt).toLocaleDateString()}</TableCell>
                   <TableCell>
                     {document.status === 'RETURN_SENT' && (
-                      <ConfirmReturnButton documentId={document.id} />
+                      <ConfirmReturnButton documentId={document.id} onConfirm={fetchDocuments} />
                     )}
                   </TableCell>
                 </TableRow>
@@ -169,6 +103,13 @@ export default async function AdminDashboard() {
           </Table>
         </CardContent>
       </Card>
+
+      {showCreateForm && (
+        <CreateDocumentForm
+          onClose={() => setShowCreateForm(false)}
+          onSuccess={fetchDocuments}
+        />
+      )}
     </div>
   );
 }

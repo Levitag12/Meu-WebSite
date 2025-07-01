@@ -1,112 +1,62 @@
-
 'use server';
 
-import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { documents, attachments } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
-import { put } from '@vercel/blob';
+import { documents, attachments, users } from '@/lib/db/schema';
+import { eq, desc } from 'drizzle-orm';
+import { auth } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
-import { z } from 'zod';
 
-// Schema validation
-const createDocumentSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  consultantId: z.string().uuid('Invalid consultant ID'),
-});
-
-const fileSchema = z.object({
-  name: z.string(),
-  size: z.number().max(10 * 1024 * 1024, 'File size must be less than 10MB'),
-  type: z.string(),
-});
-
-export async function createDocument(formData: FormData) {
-  const session = await auth();
-  
-  if (!session || session.user.role !== 'ADMIN') {
-    throw new Error('Unauthorized');
-  }
-
+export async function getDocuments(consultantId?: string) {
   try {
-    // Validate form data
-    const title = formData.get('title') as string;
-    const consultantId = formData.get('consultantId') as string;
-    const file = formData.get('file') as File;
+    const query = db
+      .select({
+        id: documents.id,
+        title: documents.title,
+        status: documents.status,
+        updatedAt: documents.updatedAt,
+        consultantName: users.name,
+        consultantId: documents.consultantId,
+      })
+      .from(documents)
+      .leftJoin(users, eq(documents.consultantId, users.id))
+      .orderBy(desc(documents.updatedAt));
 
-    const validatedData = createDocumentSchema.parse({
-      title,
-      consultantId,
-    });
-
-    if (!file || file.size === 0) {
-      throw new Error('File is required');
+    let result;
+    if (consultantId) {
+      result = await query.where(eq(documents.consultantId, consultantId));
+    } else {
+      result = await query;
     }
 
-    // Upload file to Vercel Blob
-    const blob = await put(file.name, file, {
-      access: 'public',
-    });
+    // Get attachments for each document
+    const documentsWithAttachments = await Promise.all(
+      result.map(async (doc) => {
+        const docAttachments = await db
+          .select()
+          .from(attachments)
+          .where(eq(attachments.documentId, doc.id));
 
-    // Create document record
-    const [newDocument] = await db
-      .insert(documents)
-      .values({
-        title: validatedData.title,
-        consultantId: validatedData.consultantId,
-        status: 'DELIVERED',
+        return {
+          ...doc,
+          attachments: docAttachments
+        };
       })
-      .returning();
+    );
 
-    // Create initial attachment record
-    await db.insert(attachments).values({
-      documentId: newDocument.id,
-      fileName: file.name,
-      fileUrl: blob.url,
-      attachmentType: 'INITIAL',
-    });
-
-    revalidatePath('/dashboard');
-    return { success: true };
+    return documentsWithAttachments;
   } catch (error) {
-    console.error('Error creating document:', error);
-    throw new Error('Failed to create document');
+    console.error('Error fetching documents:', error);
+    throw error;
   }
 }
 
 export async function confirmReceipt(documentId: string) {
-  const session = await auth();
-  
-  if (!session || session.user.role !== 'CONSULTANT') {
-    throw new Error('Unauthorized');
-  }
-
   try {
-    // Verify the document belongs to the consultant and is in DELIVERED status
-    const [document] = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.id, documentId))
-      .limit(1);
-
-    if (!document) {
-      throw new Error('Document not found');
-    }
-
-    if (document.consultantId !== session.user.id) {
-      throw new Error('Document not assigned to you');
-    }
-
-    if (document.status !== 'DELIVERED') {
-      throw new Error('Document is not in delivered status');
-    }
-
-    // Update document status to RECEIPT_CONFIRMED
     await db
       .update(documents)
-      .set({
+      .set({ 
         status: 'RECEIPT_CONFIRMED',
-        updatedAt: new Date(),
+        updatedAt: new Date()
       })
       .where(eq(documents.id, documentId));
 
@@ -114,63 +64,17 @@ export async function confirmReceipt(documentId: string) {
     return { success: true };
   } catch (error) {
     console.error('Error confirming receipt:', error);
-    throw new Error('Failed to confirm receipt');
+    throw error;
   }
 }
 
-export async function submitReturn(formData: FormData) {
-  const session = await auth();
-  
-  if (!session || session.user.role !== 'CONSULTANT') {
-    throw new Error('Unauthorized');
-  }
-
+export async function submitReturn(documentId: string) {
   try {
-    const documentId = formData.get('documentId') as string;
-    const returnFile = formData.get('returnFile') as File;
-
-    if (!returnFile || returnFile.size === 0) {
-      throw new Error('Return file is required');
-    }
-
-    // Verify the document belongs to the consultant and is in RECEIPT_CONFIRMED status
-    const [document] = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.id, documentId))
-      .limit(1);
-
-    if (!document) {
-      throw new Error('Document not found');
-    }
-
-    if (document.consultantId !== session.user.id) {
-      throw new Error('Document not assigned to you');
-    }
-
-    if (document.status !== 'RECEIPT_CONFIRMED') {
-      throw new Error('Document is not ready for return submission');
-    }
-
-    // Upload return file to Vercel Blob
-    const blob = await put(returnFile.name, returnFile, {
-      access: 'public',
-    });
-
-    // Create return attachment record
-    await db.insert(attachments).values({
-      documentId: documentId,
-      fileName: returnFile.name,
-      fileUrl: blob.url,
-      attachmentType: 'RETURN',
-    });
-
-    // Update document status to RETURN_SENT
     await db
       .update(documents)
-      .set({
+      .set({ 
         status: 'RETURN_SENT',
-        updatedAt: new Date(),
+        updatedAt: new Date()
       })
       .where(eq(documents.id, documentId));
 
@@ -178,46 +82,48 @@ export async function submitReturn(formData: FormData) {
     return { success: true };
   } catch (error) {
     console.error('Error submitting return:', error);
-    throw new Error('Failed to submit return');
+    throw error;
   }
 }
 
-export async function confirmReturnReceived(documentId: string) {
-  const session = await auth();
-  
-  if (!session || session.user.role !== 'ADMIN') {
-    throw new Error('Unauthorized');
-  }
-
+export async function confirmReturn(documentId: string) {
   try {
-    // Verify the document is in RETURN_SENT status
-    const [document] = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.id, documentId))
-      .limit(1);
-
-    if (!document) {
-      throw new Error('Document not found');
-    }
-
-    if (document.status !== 'RETURN_SENT') {
-      throw new Error('Document is not in return sent status');
-    }
-
-    // Update document status to COMPLETED
     await db
       .update(documents)
-      .set({
+      .set({ 
         status: 'COMPLETED',
-        updatedAt: new Date(),
+        updatedAt: new Date()
       })
       .where(eq(documents.id, documentId));
 
     revalidatePath('/dashboard');
     return { success: true };
   } catch (error) {
-    console.error('Error confirming return received:', error);
-    throw new Error('Failed to confirm return received');
+    console.error('Error confirming return:', error);
+    throw error;
+  }
+}
+
+export async function createDocument(title: string, consultantId: string) {
+  try {
+    const session = await auth();
+    if (!session || session.user.role !== 'ADMIN') {
+      throw new Error('Unauthorized');
+    }
+
+    const [newDoc] = await db
+      .insert(documents)
+      .values({
+        title,
+        consultantId,
+        status: 'DELIVERED'
+      })
+      .returning();
+
+    revalidatePath('/dashboard');
+    return { success: true, document: newDoc };
+  } catch (error) {
+    console.error('Error creating document:', error);
+    throw error;
   }
 }

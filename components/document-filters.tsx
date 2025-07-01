@@ -1,43 +1,30 @@
-
 'use client';
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function DocumentFilters() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const currentFilter = searchParams.get('status') || 'all';
+interface DocumentFiltersProps {
+  onFilter: (status: string) => void;
+}
 
-  const filters = [
-    { key: 'all', label: 'All Documents' },
-    { key: 'DELIVERED', label: 'Pending Receipt' },
-    { key: 'RECEIPT_CONFIRMED', label: 'Pending Return' },
-    { key: 'RETURN_SENT', label: 'Returns to Check' },
-    { key: 'COMPLETED', label: 'Completed' },
+export function DocumentFilters({ onFilter }: DocumentFiltersProps) {
+  const statuses = [
+    { label: 'All', value: 'ALL' },
+    { label: 'Delivered', value: 'DELIVERED' },
+    { label: 'Receipt Confirmed', value: 'RECEIPT_CONFIRMED' },
+    { label: 'Return Sent', value: 'RETURN_SENT' },
+    { label: 'Completed', value: 'COMPLETED' }
   ];
 
-  const handleFilterChange = (status: string) => {
-    const params = new URLSearchParams(searchParams);
-    if (status === 'all') {
-      params.delete('status');
-    } else {
-      params.set('status', status);
-    }
-    router.push(`/dashboard?${params.toString()}`);
-  };
-
   return (
-    <div className="flex flex-wrap gap-2">
-      {filters.map((filter) => (
+    <div className="flex gap-2 flex-wrap">
+      {statuses.map((status) => (
         <Button
-          key={filter.key}
-          variant={currentFilter === filter.key ? 'default' : 'outline'}
-          onClick={() => handleFilterChange(filter.key)}
+          key={status.value}
+          variant="outline"
           size="sm"
+          onClick={() => onFilter(status.value)}
         >
-          {filter.label}
+          {status.label}
         </Button>
       ))}
     </div>
