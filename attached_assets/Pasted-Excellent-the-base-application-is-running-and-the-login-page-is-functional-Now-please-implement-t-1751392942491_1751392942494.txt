@@ -1,0 +1,29 @@
+Excellent, the base application is running and the login page is functional. Now, please implement the specific business logic and features on top of the existing project.
+
+**1. Database Seeding:**
+- Create and execute a database seeding script located at `/scripts/seed.ts`.
+- The script must populate the `User` table.
+- Create one ADMIN user: email `admin@company.com`, password `112233`.
+- Create 6 CONSULTANT users: `Sergio Bandeira`, `Mauricio Simões`, `Mayco Muniz`, `Paulo Marcio`, `Fernando Basil`, `Lucas Almeida`. Generate professional-looking emails and random 3-digit passwords for them.
+- Ensure all passwords are hashed with bcrypt.
+- After seeding, the script should print the generated consultant credentials (email and password) to the console for verification.
+- Add a script to `package.json` to run this: `"db:seed": "tsx ./scripts/seed.ts"`.
+
+**2. Implement Role-Based Dashboards:**
+- Modify the main page (`/app/page.tsx`) to function as a redirect handler after login. If the user's role is 'ADMIN', redirect them to `/dashboard`. If the role is 'CONSULTANT', also redirect to `/dashboard`.
+- Create the main dashboard page at `/app/dashboard/page.tsx`.
+- This dashboard page must conditionally render content based on the user's role:
+  - **For Admins:** Display a Shadcn/ui DataTable showing **all** documents from all consultants. Include columns for Document Title, Status, Assigned Consultant, and Last Update. Implement filter controls for the status. Add a "Create New Document" button.
+  - **For Consultants:** Display a Shadcn/ui DataTable showing **only** the documents assigned to the currently logged-in consultant.
+
+**3. Implement the Document Workflow Logic:**
+- On the dashboard, for a document with `status: 'DELIVERED'`, the consultant must see a button named **"Confirmar Recebimento"**. Attachments for this document should not be downloadable yet.
+- When "Confirmar Recebimento" is clicked, use a Server Action to update the document's status to `RECEIPT_CONFIRMED`. The UI should then enable the download button for the attachments.
+- Consultants must have a **"Enviar Devolutiva"** button on their documents. This should open a Shadcn/ui Dialog component, allowing them to upload a new file (type: 'RETURN'). This action uses a Server Action to change the status to `RETURN_SENT`.
+- The Admin, seeing a document with `status: 'RETURN_SENT'`, must have a button named **"Confirmar Devolutiva"**. This uses a Server Action to change the status to `COMPLETED`.
+
+**4. Final UI Touches:**
+- Use Shadcn/ui components extensively for a professional look: `Badge` for status indicators, `Button`, `DataTable`, `Dialog` for uploads.
+- The main layout (`/app/layout.tsx` or a new dashboard layout) should include a header with the logged-in user's name and a "Sign Out" button.
+
+Please apply these modifications to the existing, working project.
