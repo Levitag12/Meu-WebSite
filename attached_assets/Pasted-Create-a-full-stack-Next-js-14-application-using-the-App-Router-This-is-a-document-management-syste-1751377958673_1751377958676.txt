@@ -1,0 +1,31 @@
+Create a full-stack Next.js 14 application using the App Router. This is a document management system for a Brazilian company.
+
+**1. Tech Stack:**
+- TypeScript
+- Tailwind CSS
+- Shadcn/ui (pre-configured)
+- Drizzle ORM with Vercel Postgres
+- Auth.js (NextAuth.js v5) for authentication
+- Vercel Blob for file storage
+
+**2. Database Schema (Drizzle):**
+- **User:** `id`, `name`, `email` (unique), `hashedPassword`, `role` (enum: 'ADMIN', 'CONSULTANT'), `createdAt`.
+- **Document:** `id`, `title`, `status` (enum: 'DELIVERED', 'RECEIPT_CONFIRMED', 'RETURN_SENT', 'COMPLETED'), `consultantId` (FK to User), `createdAt`, `updatedAt`.
+- **Attachment:** `id`, `documentId` (FK to Document), `fileName`, `fileUrl` (from Vercel Blob), `attachmentType` (enum: 'INITIAL', 'RETURN'), `uploadedAt`.
+
+**3. User Roles & Workflow:**
+- **Admin:** Sees all documents. Creates documents and assigns them to consultants (initial status: 'DELIVERED'). Confirms receipt of consultant returns (changes status to 'COMPLETED'). Can manage user accounts.
+- **Consultant:** Sees only their own documents. Must click "Confirm Receipt" on a 'DELIVERED' document to enable the download button (status changes to 'RECEIPT_CONFIRMED'). Can submit a return with a file upload (status changes to 'RETURN_SENT').
+
+**4. UI & Pages:**
+- Create a login page at `/login` using email/password.
+- Create a main dashboard at `/` that is a protected route. It must display a DataTable of documents with filters for status. The actions and data shown must respect the user's role.
+- Create a detail page for documents at `/documents/[id]`.
+- Create a user management page for admins at `/admin/users`.
+
+**5. Initial Data (Database Seed Script):**
+- Create a seed script runnable with `npm run seed`.
+- **Admin:** 1 user, email `admin@company.com`, password `112233`.
+- **Consultants:** 6 users: `Sergio Bandeira`, `Mauricio Simões`, `Mayco Muniz`, `Paulo Marcio`, `Fernando Basil`, `Lucas Almeida`. Generate professional emails and random 3-digit passwords for them. Print their credentials to the console after seeding.
+
+Implement all features using professional practices like Server Actions and Zod for validation.
