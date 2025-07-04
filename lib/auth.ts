@@ -1,4 +1,3 @@
-
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "@/lib/db/index";
@@ -13,7 +12,7 @@ export const authOptions: NextAuthOptions = {
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
@@ -33,7 +32,7 @@ export const authOptions: NextAuthOptions = {
 
           const isPasswordValid = await bcrypt.compare(
             credentials.password,
-            user[0].password
+            user[0].password,
           );
 
           if (!isPasswordValid) {
@@ -50,11 +49,11 @@ export const authOptions: NextAuthOptions = {
           console.error("Auth error:", error);
           return null;
         }
-      }
-    })
+      },
+    }),
   ],
   session: {
-    strategy: "jwt"
+    strategy: "jwt",
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -69,9 +68,16 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as string;
       }
       return session;
-    }
+    },
   },
   pages: {
-    signIn: "/login"
-  }
+    signIn: "/login",
+  },
+};
+
+// Add a function to retrieve the session
+export const auth = async () => {
+  const { getSession } = await import("next-auth/react"); // Dynamic import for better tree-shaking
+  const session = await getSession();
+  return session;
 };

@@ -1,4 +1,4 @@
-run = "npm run dev"
+run = "npm run dev -- --port 3000 --hostname 0.0.0.0"
 entrypoint = "index.js"
 hidden = [".config", "package-lock.json", ".next", ".swc"]
 modules = ["nodejs-22"]
@@ -16,11 +16,14 @@ deploymentTarget = "cloudrun"
 
 [[ports]]
 localPort = 3000
-externalPort = 80
 
 [[ports]]
 localPort = 3001
 externalPort = 3001
+
+[[ports]]
+localPort = 5000
+externalPort = 80
 
 [workflows]
 runButton = "Development"
@@ -32,7 +35,7 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev"
+args = "npm run dev -- --port 3000 --hostname 0.0.0.0"
 
 [[workflows.workflow]]
 name = "Development"
@@ -41,4 +44,4 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev"
+args = "npm run dev -- --port 3000 --hostname 0.0.0.0"

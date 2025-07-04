@@ -1,12 +1,26 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ConfirmReceiptButton } from '@/components/confirm-receipt-button';
-import { DownloadButton } from '@/components/download-button';
-import { SubmitReturnButton } from '@/components/submit-return-button';
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ConfirmReceiptButton } from "@/components/confirm-receipt-button";
+import { DownloadButton } from "@/components/download-button";
+import { SubmitReturnButton } from "@/components/submit-return-button";
+import { submitReturn } from "@/app/actions/document-actions"; // Ajuste o caminho, se necessário
 
 interface Document {
   id: string;
@@ -25,7 +39,9 @@ interface ConsultantDashboardProps {
   consultantId: string;
 }
 
-export function ConsultantDashboard({ consultantId }: ConsultantDashboardProps) {
+export function ConsultantDashboard({
+  consultantId,
+}: ConsultantDashboardProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
 
   useEffect(() => {
@@ -34,31 +50,35 @@ export function ConsultantDashboard({ consultantId }: ConsultantDashboardProps) 
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch(`/api/documents?consultantId=${consultantId}`);
+      const response = await fetch(
+        `/api/documents?consultantId=${consultantId}`,
+      );
       const data = await response.json();
       setDocuments(data);
     } catch (error) {
-      console.error('Error fetching documents:', error);
+      console.error("Error fetching documents:", error);
     }
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-      DELIVERED: 'default',
-      RECEIPT_CONFIRMED: 'secondary',
-      RETURN_SENT: 'outline',
-      COMPLETED: 'destructive'
+    const variants: Record<
+      string,
+      "default" | "secondary" | "destructive" | "outline"
+    > = {
+      DELIVERED: "default",
+      RECEIPT_CONFIRMED: "secondary",
+      RETURN_SENT: "outline",
+      COMPLETED: "destructive",
     };
-    return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
+    return <Badge variant={variants[status] || "default"}>{status}</Badge>;
+  };
+
+  const handleSubmitReturn = async (documentId: string) => {
+    // Adicione lógica para abrir um diálogo e tratar o envio do retorno aqui, se ainda não tiver
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">My Documents</h2>
-        <p className="text-muted-foreground">Documents assigned to you</p>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>Your Assigned Documents</CardTitle>
@@ -78,32 +98,37 @@ export function ConsultantDashboard({ consultantId }: ConsultantDashboardProps) 
             <TableBody>
               {documents.map((document) => (
                 <TableRow key={document.id}>
-                  <TableCell className="font-medium">{document.title}</TableCell>
+                  <TableCell className="font-medium">
+                    {document.title}
+                  </TableCell>
                   <TableCell>{getStatusBadge(document.status)}</TableCell>
-                  <TableCell>{new Date(document.updatedAt).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    {new Date(document.updatedAt).toLocaleDateString()}
+                  </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                       {document.attachments.map((attachment) => (
                         <DownloadButton
                           key={attachment.id}
                           attachment={attachment}
-                          disabled={document.status === 'DELIVERED'}
+                          disabled={document.status === "DELIVERED"}
                         />
                       ))}
                     </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-2">
-                      {document.status === 'DELIVERED' && (
+                      {document.status === "DELIVERED" && (
                         <ConfirmReceiptButton
                           documentId={document.id}
                           onConfirm={fetchDocuments}
                         />
                       )}
-                      {(document.status === 'RECEIPT_CONFIRMED' || document.status === 'RETURN_SENT') && (
+                      {(document.status === "RECEIPT_CONFIRMED" ||
+                        document.status === "RETURN_SENT") && (
                         <SubmitReturnButton
                           documentId={document.id}
-                          onSubmit={fetchDocuments}
+                          onSubmit={handleSubmitReturn}
                         />
                       )}
                     </div>
